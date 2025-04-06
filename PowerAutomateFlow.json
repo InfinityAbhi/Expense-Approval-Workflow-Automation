@@ -1,1 +1,73 @@
-
+{
+    "name": "Expense Approval Workflow",
+    "description": "Automates the expense approval process triggered by Microsoft Forms and integrated with SharePoint and email notifications.",
+    "trigger": {
+        "type": "MicrosoftForms",
+        "name": "When a new response is submitted",
+        "formId": "Expense-Form-001"
+    },
+    "actions": [
+        {
+            "name": "Get Response Details",
+            "type": "MicrosoftForms.GetResponseDetails",
+            "parameters": {
+                "formId": "Expense-Form-001",
+                "responseId": "dynamic_response_id"
+            }
+        },
+        {
+            "name": "Start Approval",
+            "type": "Approvals.StartAndWaitForApproval",
+            "parameters": {
+                "approvalType": "ApproveReject.FirstToRespond",
+                "title": "Expense Approval Request",
+                "assignedTo": "manager@example.com",
+                "details": "Expense request submitted for approval.",
+                "itemLinkDescription": "View details in SharePoint"
+            }
+        },
+        {
+            "name": "Condition",
+            "type": "Control.If",
+            "expression": "@equals(outputs('Start_Approval')?['body/outcome'], 'Approve')",
+            "actions": {
+                "ifTrue": [
+                    {
+                        "name": "Create Item",
+                        "type": "SharePoint.CreateItem",
+                        "parameters": {
+                            "siteUrl": "https://company.sharepoint.com/sites/Finance",
+                            "listName": "ExpenseRecords",
+                            "item": {
+                                "Title": "Expense Submitted",
+                                "Amount": "dynamic_amount",
+                                "Category": "dynamic_category",
+                                "SubmittedBy": "dynamic_user"
+                            }
+                        }
+                    },
+                    {
+                        "name": "Send Approval Confirmation Email",
+                        "type": "Office365.SendEmail",
+                        "parameters": {
+                            "to": "user@example.com",
+                            "subject": "Expense Approved",
+                            "body": "Your expense request has been approved and logged into the system."
+                        }
+                    }
+                ],
+                "ifFalse": [
+                    {
+                        "name": "Send Rejection Email",
+                        "type": "Office365.SendEmail",
+                        "parameters": {
+                            "to": "user@example.com",
+                            "subject": "Expense Rejected",
+                            "body": "Your expense request has been rejected. Please contact your manager for more details."
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
